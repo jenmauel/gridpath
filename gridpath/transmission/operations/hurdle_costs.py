@@ -126,14 +126,14 @@ def add_model_components(
 
     m.hurdle_rate_pos_dir_per_mwh = Param(
         m.TX_LINES,
-        m.PERIODS,  # TODO: chanage to TX_OPR_PRDS?
+        m.TX_OPR_TMPS,
         within=NonNegativeReals,
         default=0,
     )
 
     m.hurdle_rate_neg_dir_per_mwh = Param(
         m.TX_LINES,
-        m.PERIODS,  # TODO: chanage to TX_OPR_PRDS?
+        m.TX_OPR_TMPS,
         within=NonNegativeReals,
         default=0,
     )
@@ -168,13 +168,13 @@ def hurdle_cost_pos_dir_rule(mod, tx, tmp):
     Hurdle_Cost_Pos_Dir must be non-negative, so will be 0
     when Transmit_Power is negative (flow in the negative direction).
     """
-    if mod.hurdle_rate_pos_dir_per_mwh[tx, mod.period[tmp]] == 0:
+    if mod.hurdle_rate_pos_dir_per_mwh[tx, tmp] == 0:
         return Constraint.Skip
     else:
         return (
             mod.Hurdle_Cost_Pos_Dir[tx, tmp]
             >= mod.Transmit_Power_MW[tx, tmp]
-            * mod.hurdle_rate_pos_dir_per_mwh[tx, mod.period[tmp]]
+            * mod.hurdle_rate_pos_dir_per_mwh[tx, tmp]
         )
 
 
@@ -186,13 +186,13 @@ def hurdle_cost_neg_dir_rule(mod, tx, tmp):
     Hurdle_Cost_Neg_Dir must be non-negative, so will be 0
     when Transmit_Power is positive (flow in the positive direction).
     """
-    if mod.hurdle_rate_neg_dir_per_mwh[tx, mod.period[tmp]] == 0:
+    if mod.hurdle_rate_neg_dir_per_mwh[tx, tmp] == 0:
         return Constraint.Skip
     else:
         return (
             mod.Hurdle_Cost_Neg_Dir[tx, tmp]
             >= -mod.Transmit_Power_MW[tx, tmp]
-            * mod.hurdle_rate_neg_dir_per_mwh[tx, mod.period[tmp]]
+            * mod.hurdle_rate_neg_dir_per_mwh[tx, tmp]
         )
 
 
@@ -234,7 +234,7 @@ def load_model_data(
         ),
         select=(
             "transmission_line",
-            "period",
+            "timepoint",
             "hurdle_rate_positive_direction_per_mwh",
             "hurdle_rate_negative_direction_per_mwh",
         ),
@@ -305,21 +305,21 @@ def get_inputs_from_database(
 
     c = conn.cursor()
     hurdle_rates = c.execute(
-        """SELECT transmission_line, period, 
+        """SELECT transmission_line, timepoint, 
         hurdle_rate_positive_direction_per_mwh,
         hurdle_rate_negative_direction_per_mwh
         FROM inputs_transmission_portfolios
-        CROSS JOIN
-            (SELECT period
-            FROM inputs_temporal_periods
-            WHERE temporal_scenario_id = {}) AS relevant_periods 
+        JOIN
+            (SELECT timepoint
+            FROM inputs_temporal
+            WHERE temporal_scenario_id = {}) as relevant_timepoints
         LEFT OUTER JOIN
-            (SELECT transmission_line, period, 
+            (SELECT transmission_line, timepoint, 
             hurdle_rate_positive_direction_per_mwh,
             hurdle_rate_negative_direction_per_mwh
             FROM inputs_transmission_hurdle_rates
             WHERE transmission_hurdle_rate_scenario_id = {}) AS relevant_hrs
-        USING (transmission_line, period)
+        USING (transmission_line)
         WHERE transmission_portfolio_scenario_id = {};
         """.format(
             subscenarios.TEMPORAL_SCENARIO_ID,
@@ -394,7 +394,7 @@ def write_model_inputs(
         writer.writerow(
             [
                 "transmission_line",
-                "period",
+                "timepoint",
                 "hurdle_rate_positive_direction_per_mwh",
                 "hurdle_rate_negative_direction_per_mwh",
             ]
@@ -566,6 +566,6 @@ def validate_inputs(
         db_table="inputs_transmission_hurdle_rates",
         severity="Low",
         errors=validate_missing_inputs(
-            df=df, col=cols, idx_col=["transmission_line", "period"], msg=msg
+            df=df, col=cols, idx_col=["transmission_line", "timepoint"], msg=msg
         ),
     )

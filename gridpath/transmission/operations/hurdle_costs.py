@@ -309,7 +309,7 @@ def get_inputs_from_database(
         hurdle_rate_positive_direction_per_mwh,
         hurdle_rate_negative_direction_per_mwh
         FROM inputs_transmission_portfolios
-        CROSS JOIN
+        JOIN
             (SELECT timepoint
             FROM inputs_temporal
             WHERE temporal_scenario_id = {}) as relevant_timepoints

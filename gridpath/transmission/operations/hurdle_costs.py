@@ -319,7 +319,7 @@ def get_inputs_from_database(
             hurdle_rate_negative_direction_per_mwh
             FROM inputs_transmission_hurdle_rates
             WHERE transmission_hurdle_rate_scenario_id = {}) AS relevant_hrs
-        USING (transmission_line)
+        USING (transmission_line, timepoint)
         WHERE transmission_portfolio_scenario_id = {};
         """.format(
             subscenarios.TEMPORAL_SCENARIO_ID,
